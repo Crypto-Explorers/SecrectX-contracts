@@ -3,7 +3,7 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { expect } from "chai";
 import { Reverter } from "@/test/helpers/reverter";
 import { ERC20Mock, OTC } from "@ethers-v6";
-import { PERCENTAGE_100, PRECISION, ZERO_ADDR } from "@/scripts/utils/constants";
+import { DECIMAL, PERCENTAGE_100, PRECISION, ZERO_ADDR } from "@/scripts/utils/constants";
 import { before, beforeEach } from "mocha";
 
 describe("OTC", () => {
@@ -51,8 +51,8 @@ describe("OTC", () => {
 
   describe("#createTrade", () => {
     it("should create trade", async () => {
-      const amountIn = 3n * 10n ** 18n;
-      const amountOut = 4n * 10n ** 18n;
+      const amountIn = 3n * DECIMAL;
+      const amountOut = 4n * DECIMAL;
       const tradeId = await otc.createTrade.staticCall(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut);
       await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut);
 
@@ -92,8 +92,8 @@ describe("OTC", () => {
   });
 
   describe("#buy", async () => {
-    const amountIn = 3n * 10n ** 18n;
-    const amountOut = 4n * 10n ** 18n;
+    const amountIn = 3n * DECIMAL;
+    const amountOut = 4n * DECIMAL;
     let tradeId: bigint;
 
     beforeEach(async () => {

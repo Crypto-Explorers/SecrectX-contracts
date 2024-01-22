@@ -2,8 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract OTC {
+    using SafeERC20 for IERC20;
     struct Trade {
         address creator;
         address buyer;
@@ -50,7 +52,7 @@ contract OTC {
 
         trades.push(Trade(msg.sender, address(0), tokenIn_, tokenOut_, amountIn_, amountOut_));
 
-        IERC20(tokenIn_).transferFrom(msg.sender, address(this), amountIn_);
+        IERC20(tokenIn_).safeTransferFrom(msg.sender, address(this), amountIn_);
 
         return trades.length - 1;
     }
@@ -63,9 +65,13 @@ contract OTC {
 
         uint256 fee_ = (_trade.amountOut * feeRate) / DENOMINATOR;
 
-        IERC20(_trade.tokenOut).transferFrom(msg.sender, treasury, fee_);
-        IERC20(_trade.tokenOut).transferFrom(msg.sender, _trade.creator, _trade.amountOut - fee_);
-        IERC20(_trade.tokenIn).transfer(msg.sender, _trade.amountIn);
+        IERC20(_trade.tokenOut).safeTransferFrom(msg.sender, treasury, fee_);
+        IERC20(_trade.tokenOut).safeTransferFrom(
+            msg.sender,
+            _trade.creator,
+            _trade.amountOut - fee_
+        );
+        IERC20(_trade.tokenIn).safeTransfer(msg.sender, _trade.amountIn);
 
         _trade.buyer = msg.sender;
     }
