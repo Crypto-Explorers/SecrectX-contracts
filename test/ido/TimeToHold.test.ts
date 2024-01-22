@@ -6,6 +6,10 @@ import { Reverter } from "@/test/helpers/reverter";
 import { DECIMAL } from "@/scripts/utils/constants";
 
 describe("TimeToHoldIDO", () => {
+  function calculateReward(userStake: bigint, totalIDOTokens: bigint, totalStaked: bigint): bigint {
+    return (userStake * totalIDOTokens) / totalStaked;
+  }
+
   const reverter = new Reverter();
 
   const IDO_TOKEN_AMOUNT = 1000n * DECIMAL;
@@ -16,13 +20,14 @@ describe("TimeToHoldIDO", () => {
 
   let FIRST: SignerWithAddress;
   let SECOND: SignerWithAddress;
+  let THIRD: SignerWithAddress;
 
   let idoToken: ERC20Mock;
   let stakeToken: ERC20Mock;
   let idoContract: TimeToHoldIDO;
 
   beforeEach(async () => {
-    [FIRST, SECOND] = await ethers.getSigners();
+    [FIRST, SECOND, THIRD] = await ethers.getSigners();
 
     const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
     idoToken = await ERC20Mock.deploy("IDO TOKEN", "IDOT", 18);
@@ -35,9 +40,11 @@ describe("TimeToHoldIDO", () => {
 
     await stakeToken.mint(FIRST.address, INITIAL_BALANCE);
     await stakeToken.mint(SECOND.address, INITIAL_BALANCE);
+    await stakeToken.mint(THIRD.address, INITIAL_BALANCE);
 
     await stakeToken.approve(idoContract.getAddress(), INITIAL_BALANCE);
     await stakeToken.connect(SECOND).approve(idoContract.getAddress(), INITIAL_BALANCE);
+    await stakeToken.connect(THIRD).approve(idoContract.getAddress(), INITIAL_BALANCE);
 
     await idoContract.initialize(
       stakeToken.getAddress(),
@@ -155,10 +162,6 @@ describe("TimeToHoldIDO", () => {
   });
 
   describe("#claim", () => {
-    function calculateReward(userStake: bigint, totalIDOTokens: bigint, totalStaked: bigint): bigint {
-      return (userStake * totalIDOTokens) / totalStaked;
-    }
-
     beforeEach(async () => {
       await ethers.provider.send("evm_setNextBlockTimestamp", [
         Number((await idoContract.startTimestamp()).toString()),
@@ -204,6 +207,90 @@ describe("TimeToHoldIDO", () => {
 
     it("should revert if claiming during the stake period", async () => {
       await expect(idoContract.connect(FIRST).claim()).to.be.revertedWith("IDO: period not ended");
+    });
+  });
+
+  describe("#calculations", () => {
+    beforeEach(async () => {
+      idoContract = await (await ethers.getContractFactory("TimeToHoldIDO")).deploy();
+
+      await idoContract.initialize(
+        stakeToken.getAddress(),
+        idoToken.getAddress(),
+        200,
+        (await ethers.provider.getBlock("latest")).timestamp + 1000,
+        (await ethers.provider.getBlock("latest")).timestamp + 3000,
+        (await ethers.provider.getBlock("latest")).timestamp + 5000,
+        "https://example.com/project",
+      );
+
+      await stakeToken.approve(idoContract.getAddress(), INITIAL_BALANCE);
+      await stakeToken.connect(SECOND).approve(idoContract.getAddress(), INITIAL_BALANCE);
+      await stakeToken.connect(THIRD).approve(idoContract.getAddress(), INITIAL_BALANCE);
+
+      await idoToken.mint(idoContract.getAddress(), 200);
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        Number((await idoContract.startTimestamp()).toString()),
+      ]);
+      await ethers.provider.send("evm_mine");
+    });
+
+    it("should calculate reward for stakes 33 66 1", async () => {
+      await idoContract.connect(FIRST).stake(33);
+      await idoContract.connect(SECOND).stake(66);
+      await idoContract.connect(THIRD).stake(1);
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        Number((await idoContract.endIDOTimestamp()).toString()),
+      ]);
+      await ethers.provider.send("evm_mine");
+
+      await idoContract.connect(FIRST).claim();
+      await idoContract.connect(SECOND).claim();
+      await idoContract.connect(THIRD).claim();
+
+      expect(await idoToken.balanceOf(FIRST.address)).to.eq(66);
+      expect(await idoToken.balanceOf(SECOND.address)).to.eq(132);
+      expect(await idoToken.balanceOf(THIRD.address)).to.eq(2);
+    });
+
+    it("should calculate reward for stakes 49 50 1", async () => {
+      await idoContract.connect(FIRST).stake(49);
+      await idoContract.connect(SECOND).stake(50);
+      await idoContract.connect(THIRD).stake(1);
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        Number((await idoContract.endIDOTimestamp()).toString()),
+      ]);
+      await ethers.provider.send("evm_mine");
+
+      await idoContract.connect(FIRST).claim();
+      await idoContract.connect(SECOND).claim();
+      await idoContract.connect(THIRD).claim();
+
+      expect(await idoToken.balanceOf(FIRST.address)).to.eq(98);
+      expect(await idoToken.balanceOf(SECOND.address)).to.eq(100);
+      expect(await idoToken.balanceOf(THIRD.address)).to.eq(2);
+    });
+
+    it("should calculate reward for stakes 49 49 2", async () => {
+      await idoContract.connect(FIRST).stake(49);
+      await idoContract.connect(SECOND).stake(49);
+      await idoContract.connect(THIRD).stake(2);
+
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        Number((await idoContract.endIDOTimestamp()).toString()),
+      ]);
+      await ethers.provider.send("evm_mine");
+
+      await idoContract.connect(THIRD).claim();
+      await idoContract.connect(SECOND).claim();
+      await idoContract.connect(FIRST).claim();
+
+      expect(await idoToken.balanceOf(FIRST.address)).to.eq(98);
+      expect(await idoToken.balanceOf(SECOND.address)).to.eq(98);
+      expect(await idoToken.balanceOf(THIRD.address)).to.eq(4);
     });
   });
 });
