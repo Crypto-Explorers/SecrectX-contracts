@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.20;
 
+import {IIDOFactory} from "../interfaces/ido/IIDOFactory.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import {TimeToHoldIDO} from "./TimeToHoldIDO.sol";
 
-contract IDOFactory {
+contract IDOFactory is IIDOFactory {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable stakeToken;

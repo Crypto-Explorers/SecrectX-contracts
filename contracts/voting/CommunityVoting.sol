@@ -5,24 +5,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {RewardSBT} from "./RewardSBT.sol";
 
-contract CommunityVoting is Ownable {
+import {ICommunityVoting} from "../interfaces/voting/ICommunityVoting.sol";
+import {IRewardSBT} from "../interfaces/voting/IRewardSBT.sol";
+
+contract CommunityVoting is Ownable, ICommunityVoting {
     using SafeERC20 for IERC20;
 
-    struct Proposal {
-        string projectDescriptionLink;
-        address token;
-        address beneficiary;
-        uint64 startTimestamp;
-        address author;
-        uint256 amount;
-        uint256 votesFor;
-        uint256 quorum;
-    }
-
     IERC20 public votingToken;
-    RewardSBT public sbt;
+    IRewardSBT public sbt;
     uint256 public quorum;
     uint256 public votingDuration;
 

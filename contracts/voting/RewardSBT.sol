@@ -2,9 +2,12 @@
 pragma solidity ^0.8.20;
 
 import {SBT} from "@solarity/solidity-lib/tokens/SBT.sol";
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract RewardSBT is SBT, Ownable {
+import {IRewardSBT} from "../interfaces/voting/IRewardSBT.sol";
+
+contract RewardSBT is SBT, Ownable, IRewardSBT {
     uint256 public nextId;
 
     constructor(string memory name_, string memory symbol_, address owner) Ownable(owner) {
