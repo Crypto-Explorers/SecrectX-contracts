@@ -23,10 +23,12 @@ contract CommunityVoting is Ownable, ICommunityVoting {
 
     constructor(
         IERC20 votingToken_,
+        IRewardSBT sbt_,
         uint256 quorum_,
         uint256 votingDuration_
     ) Ownable(msg.sender) {
         votingToken = votingToken_;
+        sbt = sbt_;
         quorum = quorum_;
         votingDuration = votingDuration_;
     }
@@ -42,7 +44,7 @@ contract CommunityVoting is Ownable, ICommunityVoting {
             (token_ == address(0) && amount_ == 0) || (token_ != address(0) && amount_ != 0),
             "CV: token and amount both should be zero or not zero at the same time"
         );
-        require(startTimestamp_ >= block.number, "CV: wrong start timestamp");
+        require(startTimestamp_ >= block.timestamp, "CV: wrong start timestamp");
 
         proposals.push(
             Proposal(
@@ -57,7 +59,9 @@ contract CommunityVoting is Ownable, ICommunityVoting {
             )
         );
 
-        IERC20(token_).safeTransferFrom(msg.sender, address(this), amount_);
+        if (token_ != address(0)) {
+            IERC20(token_).safeTransferFrom(msg.sender, address(this), amount_);
+        }
 
         return proposals.length - 1;
     }
@@ -67,7 +71,8 @@ contract CommunityVoting is Ownable, ICommunityVoting {
 
         Proposal storage _proposal = proposals[proposalId_];
 
-        require(_proposal.startTimestamp + votingDuration < block.timestamp, "CV: voting ended");
+        require(_proposal.startTimestamp < block.timestamp, "CV: voting not started");
+        require(_proposal.startTimestamp + votingDuration > block.timestamp, "CV: voting ended");
         require(_proposal.author != msg.sender, "CV: author can't vote");
 
         _proposal.votesFor += tokenAmount_;
@@ -80,7 +85,7 @@ contract CommunityVoting is Ownable, ICommunityVoting {
         Proposal storage _proposal = proposals[proposalId_];
 
         require(
-            _proposal.startTimestamp + votingDuration >= block.number,
+            _proposal.startTimestamp + votingDuration <= block.timestamp,
             "CV: voting should be ended"
         );
         require(_proposal.votesFor >= _proposal.quorum, "CV: quorum should be reached");
@@ -88,8 +93,6 @@ contract CommunityVoting is Ownable, ICommunityVoting {
         uint256 voteAmount_ = votesFor[proposalId_][msg.sender];
 
         require(voteAmount_ > 0, "CV: zero vote amount");
-
-        votingToken.transfer(msg.sender, voteAmount_);
 
         uint256 rewardTokens_ = (voteAmount_ * _proposal.amount) / _proposal.votesFor;
 
@@ -103,7 +106,7 @@ contract CommunityVoting is Ownable, ICommunityVoting {
         Proposal storage _proposal = proposals[proposalId_];
 
         require(
-            _proposal.startTimestamp + votingDuration >= block.number,
+            _proposal.startTimestamp + votingDuration <= block.timestamp,
             "CV: voting should be ended"
         );
         require(_proposal.votesFor >= _proposal.quorum, "CV: quorum should be reached");
