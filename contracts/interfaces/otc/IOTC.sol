@@ -9,6 +9,7 @@ interface IOTC {
         address tokenOut;
         uint256 amountIn;
         uint256 amountOut;
+        bool isClosed;
     }
 
     function getTrades(
@@ -20,7 +21,8 @@ interface IOTC {
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
-        uint256 amountOut_
+        uint256 amountOut_,
+        address buyer
     ) external returns (uint256);
 
     function buy(uint256 tradeId_) external;

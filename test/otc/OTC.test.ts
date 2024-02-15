@@ -65,8 +65,14 @@ describe("OTC", () => {
     it("should create trade OTC token -> USD", async () => {
       const amountIn = 3n * DECIMAL;
       const amountOut = 4n * DECIMAL;
-      const tradeId = await otc.createTrade.staticCall(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut);
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut);
+      const tradeId = await otc.createTrade.staticCall(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        ZERO_ADDR,
+      );
+      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, ZERO_ADDR);
 
       const trade = await otc.trades(tradeId);
 
@@ -84,8 +90,14 @@ describe("OTC", () => {
     it("should create trade USD -> OTC token", async () => {
       const amountIn = 4n * DECIMAL;
       const amountOut = 3n * DECIMAL;
-      const tradeId = await otc.createTrade.staticCall(tokenB.getAddress(), tokenA.getAddress(), amountIn, amountOut);
-      await otc.createTrade(tokenB.getAddress(), tokenA.getAddress(), amountIn, amountOut);
+      const tradeId = await otc.createTrade.staticCall(
+        tokenB.getAddress(),
+        tokenA.getAddress(),
+        amountIn,
+        amountOut,
+        ZERO_ADDR,
+      );
+      await otc.createTrade(tokenB.getAddress(), tokenA.getAddress(), amountIn, amountOut, ZERO_ADDR);
 
       const trade = await otc.trades(tradeId);
 
@@ -100,44 +112,94 @@ describe("OTC", () => {
       expect(await tokenB.balanceOf(await otc.getAddress())).to.eq(amountIn);
     });
 
-    it("should reverts with `token addresses are 0`", async () => {
-      let tx = otc.createTrade(ZERO_ADDR, tokenB.getAddress(), 1n, 1n);
-      expect(tx).to.revertedWith("OTC: token addresses are 0");
+    it("should create trade with directed buyer", async () => {
+      const amountIn = 3n * DECIMAL;
+      const amountOut = 4n * DECIMAL;
+      const tradeId = await otc.createTrade.staticCall(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        SECOND.address,
+      );
+      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, SECOND.address);
 
-      tx = otc.createTrade(tokenA.getAddress(), ZERO_ADDR, 1n, 1n);
-      expect(tx).to.revertedWith("OTC: token addresses are 0");
+      const trade = await otc.trades(tradeId);
+
+      expect(trade.creator).to.eq(FIRST.address);
+      expect(trade.buyer).to.eq(SECOND.address);
+      expect(trade.tokenIn).to.eq(await tokenA.getAddress());
+      expect(trade.tokenOut).to.eq(await tokenB.getAddress());
+      expect(trade.amountIn).to.eq(amountIn);
+      expect(trade.amountOut).to.eq(amountOut);
+
+      expect(await tokenA.balanceOf(FIRST.address)).to.eq(INITIAL_BALANCE - amountIn);
+      expect(await tokenA.balanceOf(await otc.getAddress())).to.eq(amountIn);
+    });
+
+    it("should revert if creator is buyer", async () => {
+      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, FIRST.address)).to.revertedWith(
+        "OTC: creator can't be buyer",
+      );
+    });
+
+    it("should revert if token not in wl", async () => {
+      await wl.changeOTCWhitelist(await tokenA.getAddress(), false);
+      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, FIRST.address)).to.revertedWith(
+        "OTC: tokens must be whitelisted",
+      );
+    });
+
+    it("should reverts with `token addresses are 0`", async () => {
+      await expect(otc.createTrade(ZERO_ADDR, tokenB.getAddress(), 1n, 1n, ZERO_ADDR)).to.revertedWith(
+        "OTC: token addresses are 0",
+      );
+
+      await expect(otc.createTrade(tokenA.getAddress(), ZERO_ADDR, 1n, 1n, ZERO_ADDR)).to.revertedWith(
+        "OTC: token addresses are 0",
+      );
     });
 
     it("should reverts with `same token addresses`", async () => {
-      let tx = otc.createTrade(tokenB.getAddress(), tokenB.getAddress(), 1n, 1n);
-      expect(tx).to.revertedWith("OTC: same token addresses");
+      await wl.changeOTCWhitelist(await tokenB.getAddress(), true);
+      await expect(otc.createTrade(tokenB.getAddress(), tokenB.getAddress(), 1n, 1n, ZERO_ADDR)).to.revertedWith(
+        "OTC: same token addresses",
+      );
     });
 
     it("should reverts with `amounts are 0`", async () => {
-      let tx = otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 0n, 1n);
-      expect(tx).to.revertedWith("OTC: amounts are 0");
+      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 0n, 1n, ZERO_ADDR)).to.revertedWith(
+        "OTC: amounts are 0",
+      );
 
-      tx = otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 0n);
-      expect(tx).to.revertedWith("OTC: amounts are 0");
+      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 0n, ZERO_ADDR)).to.revertedWith(
+        "OTC: amounts are 0",
+      );
     });
   });
 
   describe("#buy", async () => {
     const amountIn = 3n * DECIMAL;
     const amountOut = 4n * DECIMAL;
+    const fee = (amountOut * FEE) / PERCENTAGE_100;
+
     let tradeId: bigint;
 
     beforeEach(async () => {
-      tradeId = await otc.createTrade.staticCall(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut);
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut);
+      tradeId = await otc.createTrade.staticCall(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        ZERO_ADDR,
+      );
+      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, ZERO_ADDR);
     });
 
     it("should buy tokens from trade", async () => {
       await otc.connect(SECOND).buy(tradeId);
 
       const trade = await otc.trades(tradeId);
-
-      const fee = (amountOut * FEE) / PERCENTAGE_100;
 
       expect(trade.creator).to.eq(FIRST.address);
       expect(trade.buyer).to.eq(SECOND.address);
@@ -157,17 +219,58 @@ describe("OTC", () => {
       expect(await tokenB.balanceOf(TREASURY.address)).to.eq(fee);
     });
 
-    it("should reverts with `trade is already complete`", async () => {
-      await otc.connect(SECOND).buy(tradeId);
-      let tx = otc.connect(SECOND).buy(tradeId);
+    it("should buy from trade with directed buyer", async () => {
+      const beforeBalanceA = await tokenA.balanceOf(await otc.getAddress());
+      const beforeBalanceB = await tokenB.balanceOf(await otc.getAddress());
 
-      expect(tx).to.revertedWith("OTC: trade is already complete");
+      tradeId = await otc.createTrade.staticCall(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        SECOND.address,
+      );
+      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, SECOND.address);
+
+      await otc.connect(SECOND).buy(tradeId);
+
+      let trade = await otc.trades(tradeId);
+
+      expect(trade.creator).to.eq(FIRST.address);
+      expect(trade.buyer).to.eq(SECOND.address);
+      expect(trade.tokenIn).to.eq(await tokenA.getAddress());
+      expect(trade.tokenOut).to.eq(await tokenB.getAddress());
+      expect(trade.amountIn).to.eq(amountIn);
+      expect(trade.amountOut).to.eq(amountOut);
+
+      expect(await tokenA.balanceOf(await otc.getAddress())).to.eq(beforeBalanceA);
+      expect(await tokenB.balanceOf(await otc.getAddress())).to.eq(beforeBalanceB);
+
+      expect(await tokenA.balanceOf(FIRST.address)).to.eq(INITIAL_BALANCE - amountIn - beforeBalanceA);
+      expect(await tokenB.balanceOf(SECOND.address)).to.eq(INITIAL_BALANCE - amountOut);
+
+      expect(await tokenA.balanceOf(SECOND.address)).to.eq(amountIn + INITIAL_BALANCE);
+      expect(await tokenB.balanceOf(FIRST.address)).to.eq(amountOut - fee + INITIAL_BALANCE);
+      expect(await tokenB.balanceOf(TREASURY.address)).to.eq(fee);
     });
 
-    it("should reverts with `creator can't buy`", async () => {
-      let tx = otc.connect(FIRST).buy(tradeId);
+    it("should revert if buyer not directed", async () => {
+      tradeId = await otc.createTrade.staticCall(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        SECOND.address,
+      );
+      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, SECOND.address);
 
-      expect(tx).to.revertedWith("OTC: creator can't buy");
+      await expect(otc.connect(TREASURY).buy(tradeId)).to.be.revertedWith("OTC: only selected buyer can buy");
+    });
+
+    it("should reverts with `trade is already complete`", async () => {
+      await otc.connect(SECOND).buy(tradeId);
+
+      await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: trade already completed");
     });
   });
 });
