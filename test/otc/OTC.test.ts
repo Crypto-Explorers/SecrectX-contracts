@@ -5,8 +5,9 @@ import { Reverter } from "@/test/helpers/reverter";
 import { ERC20Mock, OTC, TokenWhitelist } from "@ethers-v6";
 import { DECIMAL, PERCENTAGE_100, PRECISION, ZERO_ADDR } from "@/scripts/utils/constants";
 import { before, beforeEach } from "mocha";
+import { toBigInt } from "@nomicfoundation/hardhat-network-helpers/dist/src/utils";
 
-describe("OTC", () => {
+describe.only("OTC", () => {
   const reverter = new Reverter();
 
   const FEE = 3n * PRECISION;
@@ -61,18 +62,31 @@ describe("OTC", () => {
     });
   });
 
-  describe("#createTrade", () => {
+  describe("#createSimpleTrade", () => {
     it("should create trade OTC token -> USD", async () => {
       const amountIn = 3n * DECIMAL;
       const amountOut = 4n * DECIMAL;
-      const tradeId = await otc.createTrade.staticCall(
+
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      const tradeId = await otc.createSimpleTrade.staticCall(
         tokenA.getAddress(),
         tokenB.getAddress(),
         amountIn,
         amountOut,
-        ZERO_ADDR,
+        startTimestamp,
+        endTimestamp,
       );
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, ZERO_ADDR);
+      await otc.createSimpleTrade(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+      );
 
       const trade = await otc.trades(tradeId);
 
@@ -82,6 +96,8 @@ describe("OTC", () => {
       expect(trade.tokenOut).to.eq(await tokenB.getAddress());
       expect(trade.amountIn).to.eq(amountIn);
       expect(trade.amountOut).to.eq(amountOut);
+      expect(trade.startTimestamp).to.eq(startTimestamp);
+      expect(trade.endTimestamp).to.eq(endTimestamp);
 
       expect(await tokenA.balanceOf(FIRST.address)).to.eq(INITIAL_BALANCE - amountIn);
       expect(await tokenA.balanceOf(await otc.getAddress())).to.eq(amountIn);
@@ -90,14 +106,26 @@ describe("OTC", () => {
     it("should create trade USD -> OTC token", async () => {
       const amountIn = 4n * DECIMAL;
       const amountOut = 3n * DECIMAL;
-      const tradeId = await otc.createTrade.staticCall(
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      const tradeId = await otc.createSimpleTrade.staticCall(
         tokenB.getAddress(),
         tokenA.getAddress(),
         amountIn,
         amountOut,
-        ZERO_ADDR,
+        startTimestamp,
+        endTimestamp,
       );
-      await otc.createTrade(tokenB.getAddress(), tokenA.getAddress(), amountIn, amountOut, ZERO_ADDR);
+      await otc.createSimpleTrade(
+        tokenB.getAddress(),
+        tokenA.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+      );
 
       const trade = await otc.trades(tradeId);
 
@@ -112,17 +140,92 @@ describe("OTC", () => {
       expect(await tokenB.balanceOf(await otc.getAddress())).to.eq(amountIn);
     });
 
+    it("should revert if token not in wl", async () => {
+      await wl.changeOTCWhitelist(await tokenA.getAddress(), false);
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+      await expect(
+        otc.createSimpleTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, startTimestamp, endTimestamp),
+      ).to.revertedWith("OTC: tokens must be whitelisted");
+    });
+
+    it("should reverts with `token addresses are 0`", async () => {
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      await expect(
+        otc.createSimpleTrade(ZERO_ADDR, tokenB.getAddress(), 1n, 1n, startTimestamp, endTimestamp),
+      ).to.revertedWith("OTC: token addresses are 0");
+
+      await expect(
+        otc.createSimpleTrade(tokenA.getAddress(), ZERO_ADDR, 1n, 1n, startTimestamp, endTimestamp),
+      ).to.revertedWith("OTC: token addresses are 0");
+    });
+
+    it("should reverts with `same token addresses`", async () => {
+      await wl.changeOTCWhitelist(await tokenB.getAddress(), true);
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      await expect(
+        otc.createSimpleTrade(tokenB.getAddress(), tokenB.getAddress(), 1n, 1n, startTimestamp, endTimestamp),
+      ).to.revertedWith("OTC: same token addresses");
+    });
+
+    it("should reverts with `amounts are 0`", async () => {
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      await expect(
+        otc.createSimpleTrade(tokenA.getAddress(), tokenB.getAddress(), 0n, 1n, startTimestamp, endTimestamp),
+      ).to.revertedWith("OTC: amounts are 0");
+
+      await expect(
+        otc.createSimpleTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 0n, startTimestamp, endTimestamp),
+      ).to.revertedWith("OTC: amounts are 0");
+    });
+
+    it("should reverts with `timestamps is in past`", async () => {
+      await expect(
+        otc.createSimpleTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, 0, "10000000000000000"),
+      ).to.revertedWith("OTC: timestamps is in past");
+
+      await expect(
+        otc.createSimpleTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, "10000000000000000", 0),
+      ).to.revertedWith("OTC: timestamps is in past");
+    });
+  });
+
+  describe("", async () => {
     it("should create trade with directed buyer", async () => {
       const amountIn = 3n * DECIMAL;
       const amountOut = 4n * DECIMAL;
-      const tradeId = await otc.createTrade.staticCall(
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      const tradeId = await otc.createTargetTrade.staticCall(
         tokenA.getAddress(),
         tokenB.getAddress(),
         amountIn,
         amountOut,
+        startTimestamp,
+        endTimestamp,
         SECOND.address,
       );
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, SECOND.address);
+      await otc.createTargetTrade(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+        SECOND.address,
+      );
 
       const trade = await otc.trades(tradeId);
 
@@ -138,43 +241,21 @@ describe("OTC", () => {
     });
 
     it("should revert if creator is buyer", async () => {
-      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, FIRST.address)).to.revertedWith(
-        "OTC: creator can't be buyer",
-      );
-    });
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
 
-    it("should revert if token not in wl", async () => {
-      await wl.changeOTCWhitelist(await tokenA.getAddress(), false);
-      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, FIRST.address)).to.revertedWith(
-        "OTC: tokens must be whitelisted",
-      );
-    });
-
-    it("should reverts with `token addresses are 0`", async () => {
-      await expect(otc.createTrade(ZERO_ADDR, tokenB.getAddress(), 1n, 1n, ZERO_ADDR)).to.revertedWith(
-        "OTC: token addresses are 0",
-      );
-
-      await expect(otc.createTrade(tokenA.getAddress(), ZERO_ADDR, 1n, 1n, ZERO_ADDR)).to.revertedWith(
-        "OTC: token addresses are 0",
-      );
-    });
-
-    it("should reverts with `same token addresses`", async () => {
-      await wl.changeOTCWhitelist(await tokenB.getAddress(), true);
-      await expect(otc.createTrade(tokenB.getAddress(), tokenB.getAddress(), 1n, 1n, ZERO_ADDR)).to.revertedWith(
-        "OTC: same token addresses",
-      );
-    });
-
-    it("should reverts with `amounts are 0`", async () => {
-      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 0n, 1n, ZERO_ADDR)).to.revertedWith(
-        "OTC: amounts are 0",
-      );
-
-      await expect(otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 0n, ZERO_ADDR)).to.revertedWith(
-        "OTC: amounts are 0",
-      );
+      await expect(
+        otc.createTargetTrade(
+          tokenA.getAddress(),
+          tokenB.getAddress(),
+          1n,
+          1n,
+          startTimestamp,
+          endTimestamp,
+          FIRST.address,
+        ),
+      ).to.revertedWith("OTC: creator can't be buyer");
     });
   });
 
@@ -182,21 +263,38 @@ describe("OTC", () => {
     const amountIn = 3n * DECIMAL;
     const amountOut = 4n * DECIMAL;
     const fee = (amountOut * FEE) / PERCENTAGE_100;
+    let startTimestamp: number;
+    let endTimestamp: number;
 
     let tradeId: bigint;
 
     beforeEach(async () => {
-      tradeId = await otc.createTrade.staticCall(
+      // @ts-ignore
+      startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 50;
+      endTimestamp = startTimestamp + 1000;
+
+      tradeId = await otc.createTargetTrade.staticCall(
         tokenA.getAddress(),
         tokenB.getAddress(),
         amountIn,
         amountOut,
+        startTimestamp,
+        endTimestamp,
         ZERO_ADDR,
       );
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, ZERO_ADDR);
+      await otc.createTargetTrade(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+        ZERO_ADDR,
+      );
     });
 
     it("should buy tokens from trade", async () => {
+      await ethers.provider.send("evm_setNextBlockTimestamp", [startTimestamp]);
       await otc.connect(SECOND).buy(tradeId);
 
       const trade = await otc.trades(tradeId);
@@ -220,17 +318,28 @@ describe("OTC", () => {
     });
 
     it("should buy from trade with directed buyer", async () => {
+      await ethers.provider.send("evm_setNextBlockTimestamp", [startTimestamp]);
       const beforeBalanceA = await tokenA.balanceOf(await otc.getAddress());
       const beforeBalanceB = await tokenB.balanceOf(await otc.getAddress());
 
-      tradeId = await otc.createTrade.staticCall(
+      tradeId = await otc.createTargetTrade.staticCall(
         tokenA.getAddress(),
         tokenB.getAddress(),
         amountIn,
         amountOut,
+        startTimestamp,
+        endTimestamp,
         SECOND.address,
       );
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, SECOND.address);
+      await otc.createTargetTrade(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+        SECOND.address,
+      );
 
       await otc.connect(SECOND).buy(tradeId);
 
@@ -255,22 +364,39 @@ describe("OTC", () => {
     });
 
     it("should revert if buyer not directed", async () => {
-      tradeId = await otc.createTrade.staticCall(
+      tradeId = await otc.createTargetTrade.staticCall(
         tokenA.getAddress(),
         tokenB.getAddress(),
         amountIn,
         amountOut,
+        startTimestamp,
+        endTimestamp,
         SECOND.address,
       );
-      await otc.createTrade(tokenA.getAddress(), tokenB.getAddress(), amountIn, amountOut, SECOND.address);
+      await otc.createTargetTrade(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+        SECOND.address,
+      );
 
       await expect(otc.connect(TREASURY).buy(tradeId)).to.be.revertedWith("OTC: only selected buyer can buy");
     });
 
     it("should reverts with `trade is already complete`", async () => {
+      await ethers.provider.send("evm_setNextBlockTimestamp", [startTimestamp]);
       await otc.connect(SECOND).buy(tradeId);
 
       await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: trade already completed");
+    });
+
+    it("should revert with `not started or expired`", async () => {
+      await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: not started or expired");
+      await ethers.provider.send("evm_setNextBlockTimestamp", [endTimestamp]);
+      await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: not started or expired");
     });
   });
 });

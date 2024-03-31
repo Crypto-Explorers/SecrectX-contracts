@@ -24,28 +24,45 @@ contract OTC is IOTC {
         tokenWhitelist = tokenWhitelist_;
     }
 
-    function createTrade(
+    function createSimpleTrade(
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOut_,
+        uint64 startTimestamp_,
+        uint64 endTimestamp_
+    ) external returns (uint256) {
+        return
+            _createTrade(
+                tokenIn_,
+                tokenOut_,
+                amountIn_,
+                amountOut_,
+                startTimestamp_,
+                endTimestamp_,
+                address(0)
+            );
+    }
+
+    function createTargetTrade(
+        address tokenIn_,
+        address tokenOut_,
+        uint256 amountIn_,
+        uint256 amountOut_,
+        uint64 startTimestamp_,
+        uint64 endTimestamp_,
         address buyer_
     ) external returns (uint256) {
-        require(tokenIn_ != address(0) && tokenOut_ != address(0), "OTC: token addresses are 0");
-        require(
-            (tokenWhitelist.OTCWhitelist(tokenIn_) || tokenWhitelist.OTCWhitelist(tokenOut_)) &&
-                (tokenWhitelist.USDStables(tokenIn_) || tokenWhitelist.USDStables(tokenOut_)),
-            "OTC: tokens must be whitelisted"
-        );
-        require(tokenIn_ != tokenOut_, "OTC: same token addresses");
-        require(amountIn_ != 0 && amountOut_ != 0, "OTC: amounts are 0");
-        require(buyer_ != msg.sender, "OTC: creator can't be buyer");
-
-        trades.push(Trade(msg.sender, buyer_, tokenIn_, tokenOut_, amountIn_, amountOut_, false));
-
-        IERC20(tokenIn_).safeTransferFrom(msg.sender, address(this), amountIn_);
-
-        return trades.length - 1;
+        return
+            _createTrade(
+                tokenIn_,
+                tokenOut_,
+                amountIn_,
+                amountOut_,
+                startTimestamp_,
+                endTimestamp_,
+                buyer_
+            );
     }
 
     function buy(uint256 tradeId_) external {
@@ -55,6 +72,10 @@ contract OTC is IOTC {
         require(
             _trade.buyer == address(0) || _trade.buyer == msg.sender,
             "OTC: only selected buyer can buy"
+        );
+        require(
+            _trade.startTimestamp <= block.timestamp && _trade.endTimestamp > block.timestamp,
+            "OTC: not started or expired"
         );
 
         uint256 fee_ = (_trade.amountOut * feeRate) / DENOMINATOR;
@@ -102,5 +123,47 @@ contract OTC is IOTC {
         if (offset_ > to_) {
             to_ = offset_;
         }
+    }
+
+    function _createTrade(
+        address tokenIn_,
+        address tokenOut_,
+        uint256 amountIn_,
+        uint256 amountOut_,
+        uint64 startTimestamp_,
+        uint64 endTimestamp_,
+        address buyer_
+    ) internal returns (uint256) {
+        require(tokenIn_ != address(0) && tokenOut_ != address(0), "OTC: token addresses are 0");
+        require(
+            (tokenWhitelist.OTCWhitelist(tokenIn_) || tokenWhitelist.OTCWhitelist(tokenOut_)) &&
+                (tokenWhitelist.USDStables(tokenIn_) || tokenWhitelist.USDStables(tokenOut_)),
+            "OTC: tokens must be whitelisted"
+        );
+        require(tokenIn_ != tokenOut_, "OTC: same token addresses");
+        require(amountIn_ != 0 && amountOut_ != 0, "OTC: amounts are 0");
+        require(buyer_ != msg.sender, "OTC: creator can't be buyer");
+        require(
+            startTimestamp_ >= block.timestamp && startTimestamp_ < endTimestamp_,
+            "OTC: timestamps is in past"
+        );
+
+        trades.push(
+            Trade(
+                msg.sender,
+                buyer_,
+                tokenIn_,
+                tokenOut_,
+                amountIn_,
+                amountOut_,
+                startTimestamp_,
+                endTimestamp_,
+                false
+            )
+        );
+
+        IERC20(tokenIn_).safeTransferFrom(msg.sender, address(this), amountIn_);
+
+        return trades.length - 1;
     }
 }

@@ -9,6 +9,8 @@ interface IOTC {
         address tokenOut;
         uint256 amountIn;
         uint256 amountOut;
+        uint64 startTimestamp;
+        uint64 endTimestamp;
         bool isClosed;
     }
 
@@ -17,12 +19,23 @@ interface IOTC {
         uint256 limit_
     ) external view returns (Trade[] memory list_);
 
-    function createTrade(
+    function createSimpleTrade(
         address tokenIn_,
         address tokenOut_,
         uint256 amountIn_,
         uint256 amountOut_,
-        address buyer
+        uint64 startTimestamp_,
+        uint64 endTimestamp_
+    ) external returns (uint256);
+
+    function createTargetTrade(
+        address tokenIn_,
+        address tokenOut_,
+        uint256 amountIn_,
+        uint256 amountOut_,
+        uint64 startTimestamp_,
+        uint64 endTimestamp_,
+        address buyer_
     ) external returns (uint256);
 
     function buy(uint256 tradeId_) external;
