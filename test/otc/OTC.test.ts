@@ -383,4 +383,62 @@ describe.only("OTC", () => {
       await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: not started or expired");
     });
   });
+
+  describe("#rejectTrade", () => {
+    const amountIn = 3n * DECIMAL;
+    const amountOut = 4n * DECIMAL;
+    const fee = (amountOut * FEE) / PERCENTAGE_100;
+    let startTimestamp: number;
+    let endTimestamp: number;
+
+    let tradeId: bigint;
+
+    beforeEach(async () => {
+      // @ts-ignore
+      startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 50;
+      endTimestamp = startTimestamp + 1000;
+
+      tradeId = await otc.createTargetTrade.staticCall(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+        ZERO_ADDR,
+      );
+      await otc.createTargetTrade(
+        tokenA.getAddress(),
+        tokenB.getAddress(),
+        amountIn,
+        amountOut,
+        startTimestamp,
+        endTimestamp,
+        ZERO_ADDR,
+      );
+    });
+
+    it("should reject trade", async () => {
+      const beforeBalance = await tokenA.balanceOf(FIRST.address);
+      await otc.rejectTrade(tradeId);
+
+      let trade = await otc.trades(tradeId);
+
+      expect(trade.creator).to.eq(FIRST.address);
+      expect(trade.buyer).to.eq(ZERO_ADDR);
+
+      expect(await tokenA.balanceOf(FIRST.address)).to.eq(beforeBalance + trade.amountIn);
+    });
+
+    it("should revert if sender is not creator", async () => {
+      await expect(otc.connect(SECOND).rejectTrade(tradeId)).to.revertedWith("OTC: only creator can reject");
+    });
+
+    it("should revert if trade already closed", async () => {
+      await ethers.provider.send("evm_setNextBlockTimestamp", [startTimestamp]);
+      await otc.connect(SECOND).buy(tradeId);
+
+      await expect(otc.rejectTrade(tradeId)).to.revertedWith("OTC: already closed");
+    });
+  });
 });
