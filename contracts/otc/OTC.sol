@@ -14,14 +14,12 @@ contract OTC is IOTC {
 
     uint256 public feeRate; // 10**27 = 100%
     address public treasury;
-    ITokenWhitelist public tokenWhitelist;
 
     Trade[] public trades;
 
-    constructor(uint256 feeRate_, address treasury_, ITokenWhitelist tokenWhitelist_) {
+    constructor(uint256 feeRate_, address treasury_) {
         feeRate = feeRate_;
         treasury = treasury_;
-        tokenWhitelist = tokenWhitelist_;
     }
 
     function createSimpleTrade(
@@ -135,11 +133,6 @@ contract OTC is IOTC {
         address buyer_
     ) internal returns (uint256) {
         require(tokenIn_ != address(0) && tokenOut_ != address(0), "OTC: token addresses are 0");
-        require(
-            (tokenWhitelist.OTCWhitelist(tokenIn_) || tokenWhitelist.OTCWhitelist(tokenOut_)) &&
-                (tokenWhitelist.USDStables(tokenIn_) || tokenWhitelist.USDStables(tokenOut_)),
-            "OTC: tokens must be whitelisted"
-        );
         require(tokenIn_ != tokenOut_, "OTC: same token addresses");
         require(amountIn_ != 0 && amountOut_ != 0, "OTC: amounts are 0");
         require(buyer_ != msg.sender, "OTC: creator can't be buyer");

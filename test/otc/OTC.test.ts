@@ -27,16 +27,11 @@ describe.only("OTC", () => {
 
     const ERC20Mock = await ethers.getContractFactory("ERC20Mock");
     const OTC = await ethers.getContractFactory("OTC");
-    const TokenWhitelist = await ethers.getContractFactory("TokenWhitelist");
 
     tokenA = await ERC20Mock.deploy("TokenA", "TA", 18);
     tokenB = await ERC20Mock.deploy("TokenB", "TB", 18);
 
-    wl = await TokenWhitelist.deploy();
-    await wl.changeOTCWhitelist(tokenA, true);
-    await wl.changeUSDStables(tokenB, true);
-
-    otc = await OTC.deploy(FEE, TREASURY.address, await wl.getAddress());
+    otc = await OTC.deploy(FEE, TREASURY.address);
 
     await tokenA.mint(FIRST.address, INITIAL_BALANCE);
     await tokenB.mint(SECOND.address, INITIAL_BALANCE);
@@ -140,16 +135,6 @@ describe.only("OTC", () => {
       expect(await tokenB.balanceOf(await otc.getAddress())).to.eq(amountIn);
     });
 
-    it("should revert if token not in wl", async () => {
-      await wl.changeOTCWhitelist(await tokenA.getAddress(), false);
-      // @ts-ignore
-      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
-      const endTimestamp = startTimestamp + 1000;
-      await expect(
-        otc.createSimpleTrade(tokenA.getAddress(), tokenB.getAddress(), 1n, 1n, startTimestamp, endTimestamp),
-      ).to.revertedWith("OTC: tokens must be whitelisted");
-    });
-
     it("should reverts with `token addresses are 0`", async () => {
       // @ts-ignore
       const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
@@ -165,7 +150,6 @@ describe.only("OTC", () => {
     });
 
     it("should reverts with `same token addresses`", async () => {
-      await wl.changeOTCWhitelist(await tokenB.getAddress(), true);
       // @ts-ignore
       const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
       const endTimestamp = startTimestamp + 1000;
