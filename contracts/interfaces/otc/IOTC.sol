@@ -14,6 +14,19 @@ interface IOTC {
         bool isClosed;
     }
 
+    event TradeCreated(
+        uint256 tradeId,
+        address tokenIn,
+        address tokenOut,
+        address amountIn,
+        address amountOut,
+        uint64 startTimestamp,
+        uint64 endTimestamp,
+        address saller,
+        address buyer
+    );
+    event Bought(uint256 tradeId, address buyer);
+
     function getTrades(
         uint256 offset_,
         uint256 limit_

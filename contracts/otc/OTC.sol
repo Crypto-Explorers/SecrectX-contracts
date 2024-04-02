@@ -92,6 +92,8 @@ contract OTC is IOTC {
         if (_trade.buyer == address(0)) {
             _trade.buyer = msg.sender;
         }
+
+        emit Bought(tradeId_, msg.sender);
     }
 
     function getTrades(
@@ -156,6 +158,18 @@ contract OTC is IOTC {
         );
 
         IERC20(tokenIn_).safeTransferFrom(msg.sender, address(this), amountIn_);
+
+        emit TradeCreated(
+            trades.length - 1,
+            tokenIn_,
+            tokenOut_,
+            amountIn_,
+            amountOut_,
+            startTimestamp_,
+            endTimestamp_,
+            msg.sender,
+            buyer_
+        );
 
         return trades.length - 1;
     }
