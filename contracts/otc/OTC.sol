@@ -96,6 +96,18 @@ contract OTC is IOTC {
         emit Bought(tradeId_, msg.sender);
     }
 
+    function rejectTrade(uint256 tradeId_) external {
+        Trade storage _trade = trades[tradeId_];
+        require(_trade.creator == msg.sender, "OTC: only creator can reject");
+        require(!_trade.isClosed, "OTC: already closed");
+
+        _trade.isClosed = true;
+
+        IERC20(_trade.tokenIn).safeTransfer(msg.sender, _trade.amountIn);
+
+        emit TradeRejected(tradeId_, msg.sender);
+    }
+
     function getTrades(
         uint256 offset_,
         uint256 limit_

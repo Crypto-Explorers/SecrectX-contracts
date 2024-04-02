@@ -18,14 +18,15 @@ interface IOTC {
         uint256 tradeId,
         address tokenIn,
         address tokenOut,
-        address amountIn,
-        address amountOut,
+        uint256 amountIn,
+        uint256 amountOut,
         uint64 startTimestamp,
         uint64 endTimestamp,
         address saller,
         address buyer
     );
     event Bought(uint256 tradeId, address buyer);
+    event TradeRejected(uint256 tradeId, address buyer);
 
     function getTrades(
         uint256 offset_,
