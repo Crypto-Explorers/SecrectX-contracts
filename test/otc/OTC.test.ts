@@ -7,7 +7,7 @@ import { DECIMAL, PERCENTAGE_100, PRECISION, ZERO_ADDR } from "@/scripts/utils/c
 import { before, beforeEach } from "mocha";
 import { toBigInt } from "@nomicfoundation/hardhat-network-helpers/dist/src/utils";
 
-describe.only("OTC", () => {
+describe("OTC", () => {
   const reverter = new Reverter();
 
   const FEE = 3n * PRECISION;
