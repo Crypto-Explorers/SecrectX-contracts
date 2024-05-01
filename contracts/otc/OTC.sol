@@ -104,7 +104,7 @@ contract OTC is IOTC {
 
         IERC20(_trade.tokenIn).safeTransfer(msg.sender, _trade.amountIn);
 
-        emit TradeRejected(tradeId_, msg.sender);
+        emit TradeRejected(tradeId_);
     }
 
     function getTrades(

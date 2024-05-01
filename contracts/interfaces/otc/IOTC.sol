@@ -26,7 +26,7 @@ interface IOTC {
         address buyer
     );
     event Bought(uint256 tradeId, address buyer);
-    event TradeRejected(uint256 tradeId, address buyer);
+    event TradeRejected(uint256 tradeId);
 
     function getTrades(
         uint256 offset_,
