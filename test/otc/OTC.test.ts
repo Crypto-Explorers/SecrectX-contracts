@@ -184,7 +184,7 @@ describe("OTC", () => {
     });
   });
 
-  describe("", async () => {
+  describe("#createTargetTrade", async () => {
     it("should create trade with directed buyer", async () => {
       const amountIn = 3n * DECIMAL;
       const amountOut = 4n * DECIMAL;
@@ -381,6 +381,12 @@ describe("OTC", () => {
       await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: not started or expired");
       await ethers.provider.send("evm_setNextBlockTimestamp", [endTimestamp]);
       await expect(otc.connect(SECOND).buy(tradeId)).to.revertedWith("OTC: not started or expired");
+    });
+
+    it("should revert with `creator can't buy``", async () => {
+      await ethers.provider.send("evm_setNextBlockTimestamp", [startTimestamp]);
+
+      await expect(otc.buy(tradeId)).to.revertedWith("OTC: creator can't buy");
     });
   });
 

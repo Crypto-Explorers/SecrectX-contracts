@@ -1,8 +1,7 @@
 {
-  "name": "hardhat-template",
+  "name": "OTC",
   "version": "1.0.0",
   "license": "MIT",
-  "author": "Distributed Lab",
   "description": "",
   "scripts": {
     "install": "npx husky install",

@@ -22,7 +22,7 @@ interface IOTC {
         uint256 amountOut,
         uint64 startTimestamp,
         uint64 endTimestamp,
-        address saller,
+        address seller,
         address buyer
     );
     event Bought(uint256 tradeId, address buyer);

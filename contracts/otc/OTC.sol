@@ -70,6 +70,7 @@ contract OTC is IOTC {
             _trade.buyer == address(0) || _trade.buyer == msg.sender,
             "OTC: only selected buyer can buy"
         );
+        require(_trade.creator != msg.sender, "OTC: creator can't buy");
         require(
             _trade.startTimestamp <= block.timestamp && _trade.endTimestamp > block.timestamp,
             "OTC: not started or expired"
