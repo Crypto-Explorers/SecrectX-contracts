@@ -5,8 +5,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IOTC} from "../interfaces/otc/IOTC.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract OTC is IOTC {
+contract OTC is IOTC, Ownable {
     using SafeERC20 for IERC20;
 
     uint256 public constant DENOMINATOR = 10 ** 27;
@@ -16,7 +17,7 @@ contract OTC is IOTC {
 
     Trade[] public trades;
 
-    constructor(uint256 feeRate_, address treasury_) {
+    constructor(uint256 feeRate_, address treasury_) Ownable(msg.sender) {
         feeRate = feeRate_;
         treasury = treasury_;
     }
@@ -184,5 +185,14 @@ contract OTC is IOTC {
         );
 
         return trades.length - 1;
+    }
+
+    function setFee(uint256 newFeeRate_) external onlyOwner {
+        feeRate = newFeeRate_;
+    }
+
+    function setTreasury(address newTreasury_) external onlyOwner {
+        require(newTreasury_ != address(0), "OTC: Zero address");
+        treasury = newTreasury_;
     }
 }

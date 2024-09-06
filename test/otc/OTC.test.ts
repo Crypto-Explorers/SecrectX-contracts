@@ -447,4 +447,42 @@ describe("OTC", () => {
       await expect(otc.rejectTrade(tradeId)).to.revertedWith("OTC: already closed");
     });
   });
+
+  describe("#setFee", () => {
+    it("should set new Fee", async () => {
+      const newFee = 10n * PRECISION;
+      expect(await otc.feeRate()).not.equal(newFee);
+
+      await otc.setFee(newFee);
+      expect(await otc.feeRate()).to.equal(newFee);
+    });
+
+    it("should revert if caller not owner", async () => {
+      await expect(otc.connect(SECOND).setFee(5n * PRECISION)).to.revertedWithCustomError(
+        otc,
+        "OwnableUnauthorizedAccount",
+      );
+    });
+  });
+
+  describe("#setTreasury", () => {
+    it("should set treasury", async () => {
+      const newTreasury = SECOND.address;
+      expect(newTreasury).not.equal(await otc.treasury());
+
+      await otc.setTreasury(newTreasury);
+      expect(await otc.treasury()).to.eq(newTreasury);
+    });
+
+    it("should revert if caller not owner", async () => {
+      await expect(otc.connect(SECOND).setTreasury(SECOND.address)).to.revertedWithCustomError(
+        otc,
+        "OwnableUnauthorizedAccount",
+      );
+    });
+
+    it("should revert if new treasury is zero address", async () => {
+      await expect(otc.setTreasury(ZERO_ADDR)).to.revertedWith("OTC: Zero address");
+    });
+  });
 });
