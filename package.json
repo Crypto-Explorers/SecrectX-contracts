@@ -1,8 +1,7 @@
 {
-  "name": "hardhat-template",
+  "name": "OTC",
   "version": "1.0.0",
   "license": "MIT",
-  "author": "Distributed Lab",
   "description": "",
   "scripts": {
     "install": "npx husky install",
@@ -16,6 +15,7 @@
     "deploy-localhost": "npx hardhat migrate --network localhost",
     "deploy-goerli": "npx hardhat migrate --network goerli --verify",
     "deploy-sepolia": "npx hardhat migrate --network sepolia --verify",
+    "deploy-holesky": "npx hardhat migrate --network holesky --verify",
     "deploy-chapel": "npx hardhat migrate --network chapel --verify",
     "deploy-mumbai": "npx hardhat migrate --network mumbai --verify",
     "deploy-fuji": "npx hardhat migrate --network fuji --verify",
@@ -28,14 +28,16 @@
     "lint-fix": "npm run lint-sol-fix && npm run lint-ts-fix && npm run lint-json-fix",
     "lint-json-fix": "prettier --write \"./**/*.json\"",
     "lint-ts-fix": "prettier --write \"./**/*.ts\"",
-    "lint-sol-fix": "prettier --write \"contracts/**/*.sol\""
+    "lint-sol-fix": "prettier --write \"contracts/**/*.sol\"",
+    "holesky:verify-otc": "npx hardhat verify --network holesky 0x77e913669dfA090fb39dC0F12cD9f7FE70152dA0 --contract contracts/otc/OTC.sol:OTC 50000000000000000000000000 0x63Bf3eBD3f190b7d27000b9acb8DC53507bD7A55 ",
+    "holesky:verify-usdx": "npx hardhat verify --network holesky 0x7A1611F4d125b478FfB0fDd19cE049481d796439 --contract contracts/mock/tokens/ERC20Mock.sol:ERC20Mock USDTOKENX USDX 6"
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.0.1",
     "@openzeppelin/contracts-upgradeable": "5.0.1",
     "@solarity/solidity-lib": "2.6.12",
     "dotenv": "^16.3.1",
-    "hardhat": "^2.19.0",
+    "hardhat": "^2.22.7",
     "typechain": "^8.3.2"
   },
   "devDependencies": {
