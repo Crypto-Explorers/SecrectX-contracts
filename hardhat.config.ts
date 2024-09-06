@@ -37,6 +37,11 @@ const config: HardhatUserConfig = {
       accounts: privateKey(),
       gasMultiplier: 1.2,
     },
+    holesky: {
+      url: `https://holesky.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
     chapel: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       accounts: privateKey(),
@@ -89,6 +94,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       goerli: `${process.env.ETHERSCAN_KEY}`,
       sepolia: `${process.env.ETHERSCAN_KEY}`,
+      holesky: `${process.env.ETHERSCAN_KEY}`,
       mainnet: `${process.env.ETHERSCAN_KEY}`,
       bscTestnet: `${process.env.BSCSCAN_KEY}`,
       bsc: `${process.env.BSCSCAN_KEY}`,
@@ -97,6 +103,16 @@ const config: HardhatUserConfig = {
       avalancheFujiTestnet: `${process.env.AVALANCHE_KEY}`,
       avalanche: `${process.env.AVALANCHE_KEY}`,
     },
+    customChains: [
+      {
+        network: "holesky",
+        chainId: 17000,
+        urls: {
+          apiURL: "https://api-holesky.etherscan.io/api",
+          browserURL: "https://holesky.etherscan.io",
+        },
+      },
+    ],
   },
   migrate: {
     pathToMigrations: "./deploy/",
