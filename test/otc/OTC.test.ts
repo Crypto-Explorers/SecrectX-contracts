@@ -241,6 +241,25 @@ describe("OTC", () => {
         ),
       ).to.revertedWith("OTC: creator can't be buyer");
     });
+
+    it("should revert if paused", async () => {
+      await otc.pause();
+      // @ts-ignore
+      const startTimestamp = (await ethers.provider.getBlock("latest")).timestamp + 1;
+      const endTimestamp = startTimestamp + 1000;
+
+      await expect(
+        otc.createTargetTrade(
+          tokenA.getAddress(),
+          tokenB.getAddress(),
+          1n,
+          1n,
+          startTimestamp,
+          endTimestamp,
+          SECOND.address,
+        ),
+      ).to.revertedWithCustomError(otc, "EnforcedPause");
+    });
   });
 
   describe("#buy", async () => {
@@ -388,6 +407,12 @@ describe("OTC", () => {
 
       await expect(otc.buy(tradeId)).to.revertedWith("OTC: creator can't buy");
     });
+
+    it("should revert if paused", async () => {
+      await otc.pause();
+
+      await expect(otc.buy(tradeId)).to.revertedWithCustomError(otc, "EnforcedPause");
+    });
   });
 
   describe("#rejectTrade", () => {
@@ -436,6 +461,16 @@ describe("OTC", () => {
       expect(await tokenA.balanceOf(FIRST.address)).to.eq(beforeBalance + trade.amountIn);
     });
 
+    it("should reject trade if paused", async () => {
+      await otc.pause();
+      await otc.rejectTrade(tradeId);
+
+      let trade = await otc.trades(tradeId);
+
+      expect(trade.creator).to.eq(FIRST.address);
+      expect(trade.buyer).to.eq(ZERO_ADDR);
+    });
+
     it("should revert if sender is not creator", async () => {
       await expect(otc.connect(SECOND).rejectTrade(tradeId)).to.revertedWith("OTC: only creator can reject");
     });
@@ -462,6 +497,14 @@ describe("OTC", () => {
         otc,
         "OwnableUnauthorizedAccount",
       );
+    });
+
+    it("should revert if new fee is zero", async () => {
+      await expect(otc.setFee(0n)).to.revertedWith("OTC: Invalid fee rate");
+    });
+
+    it("should revert if new fee is greater than 100%", async () => {
+      await expect(otc.setFee(101n * PRECISION)).to.revertedWith("OTC: Invalid fee rate");
     });
   });
 

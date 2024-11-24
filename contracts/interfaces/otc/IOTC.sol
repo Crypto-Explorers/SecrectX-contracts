@@ -27,6 +27,8 @@ interface IOTC {
     );
     event Bought(uint256 tradeId, address buyer);
     event TradeRejected(uint256 tradeId);
+    event FeeChanged(uint256 feeRate);
+    event TreasuryChanged(address newTreasury);
 
     function getTrades(
         uint256 offset_,
@@ -53,4 +55,5 @@ interface IOTC {
     ) external returns (uint256);
 
     function buy(uint256 tradeId_) external;
+    function rejectTrade(uint256 tradeId_) external;
 }

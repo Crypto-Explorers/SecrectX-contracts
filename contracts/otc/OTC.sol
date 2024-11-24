@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IOTC} from "../interfaces/otc/IOTC.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-contract OTC is IOTC, Ownable {
+contract OTC is IOTC, Ownable, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint256 public constant DENOMINATOR = 10 ** 27;
@@ -63,7 +65,7 @@ contract OTC is IOTC, Ownable {
             );
     }
 
-    function buy(uint256 tradeId_) external {
+    function buy(uint256 tradeId_) external whenNotPaused nonReentrant {
         Trade storage _trade = trades[tradeId_];
 
         require(!_trade.isClosed, "OTC: trade already completed");
@@ -97,7 +99,7 @@ contract OTC is IOTC, Ownable {
         emit Bought(tradeId_, msg.sender);
     }
 
-    function rejectTrade(uint256 tradeId_) external {
+    function rejectTrade(uint256 tradeId_) external nonReentrant {
         Trade storage _trade = trades[tradeId_];
         require(_trade.creator == msg.sender, "OTC: only creator can reject");
         require(!_trade.isClosed, "OTC: already closed");
@@ -107,6 +109,28 @@ contract OTC is IOTC, Ownable {
         IERC20(_trade.tokenIn).safeTransfer(msg.sender, _trade.amountIn);
 
         emit TradeRejected(tradeId_);
+    }
+
+    function setFee(uint256 newFeeRate_) external onlyOwner {
+        require(newFeeRate_ > 0 && newFeeRate_ < DENOMINATOR, "OTC: Invalid fee rate");
+        feeRate = newFeeRate_;
+
+        emit FeeChanged(newFeeRate_);
+    }
+
+    function setTreasury(address newTreasury_) external onlyOwner {
+        require(newTreasury_ != address(0), "OTC: Zero address");
+        treasury = newTreasury_;
+
+        emit TreasuryChanged(newTreasury_);
+    }
+
+    function pause() external whenNotPaused onlyOwner {
+        _pause();
+    }
+
+    function unpause() external whenPaused onlyOwner {
+        _unpause();
     }
 
     function getTrades(
@@ -120,6 +144,10 @@ contract OTC is IOTC, Ownable {
         for (uint256 i = offset_; i < to_; i++) {
             list_[i - offset_] = trades[i];
         }
+    }
+
+    function getTradesAmount() external view returns (uint256) {
+        return trades.length;
     }
 
     function getTo(
@@ -146,7 +174,7 @@ contract OTC is IOTC, Ownable {
         uint64 startTimestamp_,
         uint64 endTimestamp_,
         address buyer_
-    ) internal returns (uint256) {
+    ) internal whenNotPaused nonReentrant returns (uint256) {
         require(tokenIn_ != address(0) && tokenOut_ != address(0), "OTC: token addresses are 0");
         require(tokenIn_ != tokenOut_, "OTC: same token addresses");
         require(amountIn_ != 0 && amountOut_ != 0, "OTC: amounts are 0");
@@ -185,14 +213,5 @@ contract OTC is IOTC, Ownable {
         );
 
         return trades.length - 1;
-    }
-
-    function setFee(uint256 newFeeRate_) external onlyOwner {
-        feeRate = newFeeRate_;
-    }
-
-    function setTreasury(address newTreasury_) external onlyOwner {
-        require(newTreasury_ != address(0), "OTC: Zero address");
-        treasury = newTreasury_;
     }
 }
