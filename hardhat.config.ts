@@ -61,25 +61,62 @@ const config: HardhatUserConfig = {
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
       accounts: privateKey(),
-      gasMultiplier: 1.2,
+      gasMultiplier: 1.1,
     },
     ethereum: {
       url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
       accounts: privateKey(),
-      gasMultiplier: 1.2,
+      gasMultiplier: 1.1,
     },
     polygon: {
       url: `https://matic-mainnet.chainstacklabs.com`,
       accounts: privateKey(),
-      gasMultiplier: 1.2,
+      gasMultiplier: 1.1,
     },
     avalanche: {
       url: `https://api.avax.network/ext/bc/C/rpc`,
       accounts: privateKey(),
-      gasMultiplier: 1.2,
+      gasMultiplier: 1.1,
       timeout: 60000,
     },
+    base: {
+      url: `https://base-rpc.publicnode.com`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+    },
+    linea: {
+      url: `https://linea-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+    },
+    blast: {
+      url: `https://blast-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+    },
+    arbitrum: {
+      url: `https://arbitrum-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+    },
+    scroll: {
+      url: `https://scroll.drpc.org`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+    },
+    zksync: {
+      url: `https://mainnet.era.zksync.io`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+      // ethNetwork: "eth"
+    },
+    optimism: {
+      url: `https://optimism-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.1,
+    },
   },
+
   solidity: {
     version: "0.8.20",
     settings: {
@@ -102,6 +139,13 @@ const config: HardhatUserConfig = {
       polygon: `${process.env.POLYGONSCAN_KEY}`,
       avalancheFujiTestnet: `${process.env.AVALANCHE_KEY}`,
       avalanche: `${process.env.AVALANCHE_KEY}`,
+      base: `${process.env.BASESCAN_KEY}`,
+      linea: `${process.env.LINEASCAN_KEY}`,
+      blast: `${process.env.BLASTSCAN_KEY}`,
+      arbitrum: `${process.env.ARBISCAN_KEY}`,
+      scroll: `${process.env.SCROLLSCAN_KEY}`,
+      zksync: `1234`,
+      optimism: `${process.env.OPTIMISTICSCAN_KEY}`,
     },
     customChains: [
       {
